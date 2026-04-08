@@ -1,0 +1,12 @@
+name: Check Oref Alerts
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/1 * * * *'
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Test
+        run: echo "Hello World"
