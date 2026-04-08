@@ -1,20 +1,18 @@
-name: Check Oref Alerts
+name: check-alerts
 on:
   workflow_dispatch:
   schedule:
-    - cron: '*/1 * * * *'
+    - cron: "*/1 * * * *"
 
 jobs:
-  run-check:
+  run:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - name: Setup Node
-        uses: actions/setup-node@v3
+      - uses: actions/setup-node@v3
         with:
           node-version: '18'
-      - name: Install dependencies
-        run: npm install firebase-admin axios
+      - run: npm install firebase-admin axios
       - name: Run script
         env:
           FIREBASE_KEY: ${{ secrets.FIREBASE_KEY }}
