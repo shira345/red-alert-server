@@ -17,5 +17,5 @@ jobs:
         run: npm install firebase-admin axios
       - name: Run script
         env:
-          FIREBASE_KEY: ${{ secrets.FIREBASE_KEY }}$
+          FIREBASE_KEY: ${{ secrets.FIREBASE_KEY }}
         run: node index.js
