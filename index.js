@@ -10,6 +10,22 @@ if (!admin.apps.length) {
     });
 }
 
+async function sendTestNotification() {
+    try {
+        const testMessage = {
+            notification: {
+                title: "בדיקת מערכת 🛠️",
+                body: "השרת שלך מחובר ועובד! כל דקה תתבצע בדיקה."
+            },
+            topic: 'all_alerts'
+        };
+        await admin.messaging().send(testMessage);
+        console.log('✅ הודעת בדיקה נשלחה בהצלחה ל-Firebase');
+    } catch (error) {
+        console.error('❌ שגיאה בשליחת הודעת הבדיקה:', error);
+    }
+}
+
 async function checkAlerts() {
     try {
         console.log('בודק אזעקות...');
@@ -35,10 +51,18 @@ async function checkAlerts() {
                 await admin.messaging().send(message);
                 console.log('התראה נשלחה עבור: ' + city);
             }
+        } else {
+            console.log('אין אזעקות כרגע.');
         }
     } catch (e) { 
-        console.log('אין אזעקות כרגע או שגיאה בחיבור'); 
+        console.log('שגיאה בחיבור לפיקוד העורף (ייתכן שאין אזעקות):', e.message); 
     }
 }
 
-checkAlerts();
+// הרצה של הבדיקות
+async function main() {
+    await sendTestNotification(); // שליחת הודעת בדיקה מיד עם ההפעלה
+    await checkAlerts();          // בדיקת אזעקות אמת
+}
+
+main();
