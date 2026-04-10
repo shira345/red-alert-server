@@ -1,7 +1,7 @@
 const admin = require('firebase-admin');
 const axios = require('axios');
 
-// טעינת המפתח הסודי שהגדרת ב-Settings
+// טעינת המפתח הסודי מהגדרות השרת
 const serviceAccount = JSON.parse(process.env.FIREBASE_KEY);
 
 if (!admin.apps.length) {
@@ -10,35 +10,22 @@ if (!admin.apps.length) {
     });
 }
 
-async function sendTestNotification() {
-    try {
-        const testMessage = {
-            notification: {
-                title: "בדיקת מערכת 🛠️",
-                body: "השרת שלך מחובר ועובד! כל דקה תתבצע בדיקה."
-            },
-            topic: 'all_alerts'
-        };
-        await admin.messaging().send(testMessage);
-        console.log('✅ הודעת בדיקה נשלחה בהצלחה ל-Firebase');
-    } catch (error) {
-        console.error('❌ שגיאה בשליחת הודעת הבדיקה:', error);
-    }
-}
-
 async function checkAlerts() {
     try {
-        console.log('בודק אזעקות...');
-        const response = await axios.get('https://www.oref.org.il/WarningMessages/alert/alerts.json', {
+        // הוספת v=Date.now כדי לוודא שאנחנו מקבלים נתונים טריים ולא זיכרון ישן
+        const response = await axios.get('https://www.oref.org.il/WarningMessages/alert/alerts.json?v=' + Date.now(), {
             headers: { 
                 'X-Requested-With': 'XMLHttpRequest', 
                 'Referer': 'https://www.oref.org.il/',
-                'User-Agent': 'Mozilla/5.0'
-            }
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            },
+            timeout: 4000 // אם השרת לא עונה תוך 4 שניות, ננסה שוב בסבב הבא
         });
 
         if (response.data && response.data.data) {
             const cities = response.data.data;
+            console.log('🚨 אזעקה פעילה ב:', cities.join(', '));
+            
             for (let city of cities) {
                 const message = {
                     data: {
@@ -49,20 +36,23 @@ async function checkAlerts() {
                     topic: 'all_alerts'
                 };
                 await admin.messaging().send(message);
-                console.log('התראה נשלחה עבור: ' + city);
             }
-        } else {
-            console.log('אין אזעקות כרגע.');
+            console.log('✅ התראות נשלחו בהצלחה');
         }
-    } catch (e) { 
-        console.log('שגיאה בחיבור לפיקוד העורף (ייתכן שאין אזעקות):', e.message); 
+    } catch (e) {
+        // בבדיקה תכופה, שגיאות "אין נתונים" הן נורמליות לגמרי
     }
 }
 
-// הרצה של הבדיקות
+// פונקציית הלולאה האינסופית
 async function main() {
-    await sendTestNotification(); // שליחת הודעת בדיקה מיד עם ההפעלה
-    await checkAlerts();          // בדיקת אזעקות אמת
+    console.log("🚀 השרת התחיל בדיקה רציפה כל 5 שניות...");
+    
+    while (true) {
+        await checkAlerts();
+        // המתנה של 5000 מילישניות (5 שניות)
+        await new Promise(resolve => setTimeout(resolve, 5000));
+    }
 }
 
 main();
