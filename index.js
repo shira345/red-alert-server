@@ -2,13 +2,13 @@ const admin = require('firebase-admin');
 const axios = require('axios');
 const http = require('http');
 
-// 1. שרת HTTP מינימלי למניעת כיבוי ב-Render
+// שרת HTTP מינימלי - קריטי כדי ש-Render לא יכבה את הבוט
 http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/plain' });
-    res.end('Server is Live\n');
+    res.end('Server is Active\n');
 }).listen(process.env.PORT || 10000);
 
-// 2. הגדרת Firebase
+// הגדרת Firebase
 const serviceAccount = JSON.parse(process.env.FIREBASE_KEY);
 if (!admin.apps.length) {
     admin.initializeApp({
@@ -16,31 +16,29 @@ if (!admin.apps.length) {
     });
 }
 
-// פונקציה עזר לשליחת התראה שתעבוד גם כשהאפליקציה סגורה
-async function sendPush(title, body, isSilent = false) {
+// פונקציה לשליחת התראה - המבנה הזה קופץ גם כשהאפליקציה סגורה
+async function sendPush(title, body) {
     try {
         const message = {
-            // האובייקט הזה אחראי שההתראה תקפוץ גם כשהאפליקציה סגורה
             notification: {
                 title: title,
                 body: body
             },
-            // מידע נוסף שהאפליקציה יכולה להשתמש בו
             data: {
                 click_action: "FLUTTER_NOTIFICATION_CLICK",
-                status: "done"
+                type: "alert"
             },
             topic: 'all_alerts'
         };
 
         await admin.messaging().send(message);
-        if (!isSilent) console.log(`✅ נשלחה התראה: ${title}`);
+        console.log(`✅ התראה נשלחה: ${title}`);
     } catch (error) {
         console.error('❌ שגיאה בשליחה:', error.message);
     }
 }
 
-// 3. פונקציית הבדיקה המרכזית
+// בדיקת אזעקות מול פיקוד העורף
 async function checkAlerts() {
     try {
         const response = await axios.get('https://www.oref.org.il/WarningMessages/alert/alerts.json?v=' + Date.now(), {
@@ -57,13 +55,13 @@ async function checkAlerts() {
             await sendPush('🚨 אזעקה בזמן אמת!', `אזורים: ${cities.join(', ')}`);
         }
     } catch (e) {
-        // התעלמות משגיאות רשת זמניות
+        // שגיאות רשת הן נורמליות בגלל הבדיקות התכופות
     }
 }
 
-// 4. הרצה ראשונית - התראה שהשרת עלה (כדי שתוכלי לבדוק)
-sendPush('🚀 השרת הופעל!', 'המערכת בודקת אזעקות כל 5 שניות');
+// הודעת בדיקה: שולח התראה לטלפון מיד כשהשרת ב-Render עולה
+sendPush('🚀 השרת הופעל בהצלחה!', 'המערכת בודקת אזעקות כל 5 שניות');
 
-// 5. לולאת ריצה קבועה
+// הרצה קבועה
 setInterval(checkAlerts, 5000);
 console.log("🔥 Monitoring started...");
