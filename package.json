@@ -1,0 +1,13 @@
+{
+  "name": "red-alert-server",
+  "version": "1.0.0",
+  "description": "Red Alert Monitoring Server",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "firebase-admin": "^11.11.0"
+  }
+}
