@@ -1,63 +1,61 @@
 const admin = require('firebase-admin');
 const axios = require('axios');
-const http = require('http');
 
-// שרת HTTP למניעת שינה
-http.createServer((req, res) => {
-    res.writeHead(200, { 'Content-Type': 'text/plain' });
-    res.end('Active');
-}).listen(process.env.PORT || 10000);
-
-// חיבור ל-Firebase
 const serviceAccount = JSON.parse(process.env.FIREBASE_KEY);
 if (!admin.apps.length) {
-    admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount)
-    });
+    admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
 }
 
-// פונקציית שליחה משופרת
-async function sendPush(title, body) {
-    try {
-        const message = {
-            notification: { title, body },
-            android: {
-                priority: 'high',
-                notification: { sound: 'default', clickAction: 'FLUTTER_NOTIFICATION_CLICK' }
-            },
-            topic: 'all_alerts'
-        };
-        await admin.messaging().send(message);
-        console.log(`✅ הודעה נשלחה בהצלחה: ${title}`);
-    } catch (error) {
-        console.error('❌ שגיאת שליחה:', error.message);
-    }
+const sentAlerts = new Set(); // מניעת כפילויות
+
+async function sendAlertForCity(city) {
+    // מפתח ייחודי לפי עיר + דקה (מונע שליחה כפולה באותה דקה)
+    const key = `${city}_${Math.floor(Date.now() / 60000)}`;
+    if (sentAlerts.has(key)) return;
+    sentAlerts.add(key);
+
+    const message = {
+        // ✅ data במקום notification — חייב כדי ש-onMessageReceived יתקשר
+        data: {
+            city: city,
+            title: '🚨 צבע אדום!',
+            body: `אזעקה ב${city}. היכנסו למרחב המוגן!`
+        },
+        android: { priority: 'high' },
+        topic: 'all_alerts'
+    };
+
+    await admin.messaging().send(message);
+    console.log(`✅ נשלח עבור: ${city}`);
 }
 
-// בדיקת אזעקות
 async function checkAlerts() {
-    // השורה הזו תראה לך בלוגים שהשרת חי!
-    console.log(`🔍 בדיקה בתאריך: ${new Date().toLocaleTimeString()}`);
-    
+    console.log(`🔍 בדיקה: ${new Date().toLocaleTimeString('he-IL')}`);
     try {
-        const response = await axios.get('https://www.oref.org.il/WarningMessages/alert/alerts.json?v=' + Date.now(), {
-            headers: { 'Referer': 'https://www.oref.org.il/', 'User-Agent': 'Mozilla/5.0' },
-            timeout: 5000
-        });
-
-        if (response.data && response.data.data) {
-            const cities = response.data.data;
-            console.log('🚨 אזעקה זוהתה!', cities.join(', '));
-            await sendPush('🚨 אזעקה בזמן אמת!', `אזורים: ${cities.join(', ')}`);
+        const res = await axios.get(
+            'https://www.oref.org.il/WarningMessages/alert/alerts.json?v=' + Date.now(),
+            {
+                headers: { 'Referer': 'https://www.oref.org.il/', 'User-Agent': 'Mozilla/5.0' },
+                timeout: 5000
+            }
+        );
+        if (res.data?.data?.length > 0) {
+            console.log('🚨 אזעקה!', res.data.data.join(', '));
+            // ✅ שולח הודעה נפרדת לכל עיר עם שדה city
+            for (const city of res.data.data) {
+                await sendAlertForCity(city);
+            }
         }
     } catch (e) {
-        // שגיאות רשת הן נורמליות בגלל העומס
+        console.error('שגיאה:', e.message);
     }
 }
 
-// הודעת הפעלה כדי שתדעי שזה עלה
-sendPush('🚀 השרת הופעל מחדש', 'בודק אזעקות כל 5 שניות בדיוק');
-
-// הרצה כל 5 שניות
-setInterval(checkAlerts, 5000);
-console.log("🔥 Monitoring started and logging active...");
+// ✅ רץ כל 5 שניות, נעצר אחרי 55 שניות (לפני שה-Action נהרג)
+checkAlerts();
+const interval = setInterval(checkAlerts, 5000);
+setTimeout(() => {
+    clearInterval(interval);
+    console.log('✅ סיום ריצה');
+    process.exit(0);
+}, 55000);
