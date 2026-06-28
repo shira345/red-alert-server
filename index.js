@@ -15,17 +15,16 @@ async function sendAlertForCity(city) {
     sentAlerts.add(key);
 
     const message = {
-        // ✅ data במקום notification — חייב כדי ש-onMessageReceived יתקשר
-        data: {
-            city: city,
-            title: '🚨 צבע אדום!',
-            body: `אזעקה ב${city}. היכנסו למרחב המוגן!`
-        },
-        android: { priority: 'high' },
-        topic: 'all_alerts'
-    };
-
-    await admin.messaging().send(message);
+    data: {                    // ✅ data בלבד
+        city: city,
+        title: '🚨 צבע אדום!',
+        body: `אזעקה ב${city}. היכנסו למרחב המוגן!`
+    },
+    android: { priority: 'high' },
+    topic: 'all_alerts'
+    // ❌ אין כאן שום שדה notification!
+};
+await admin.messaging().send(message);
     console.log(`✅ נשלח עבור: ${city}`);
 }
 
